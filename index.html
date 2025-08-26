@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Failure Predictor</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            @apply bg-gray-900 text-gray-200;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-2xl bg-gray-800 rounded-2xl shadow-2xl p-8 space-y-8">
+        <header class="text-center">
+            <h1 class="text-4xl font-extrabold text-white mb-2">Machine Failure Predictor</h1>
+            <p class="text-gray-400">Enter the machine's parameters below to get a real-time prediction.</p>
+        </header>
+
+        <!-- Input Form -->
+        <div class="space-y-6">
+            <!-- Product Type Input -->
+            <div>
+                <label for="product_type" class="block text-sm font-medium text-gray-300 mb-1">Product Type</label>
+                <select id="product_type" class="w-full px-4 py-2 text-gray-900 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                    <option value="L">L (Low Quality)</option>
+                    <option value="M">M (Medium Quality)</option>
+                    <option value="H">H (High Quality)</option>
+                </select>
+            </div>
+
+            <!-- Numerical Inputs -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="relative">
+                    <label for="air_temp" class="block text-sm font-medium text-gray-300 mb-1">Air Temperature [K]</label>
+                    <input type="number" id="air_temp" class="w-full px-4 py-2 text-gray-900 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                </div>
+                <div class="relative">
+                    <label for="process_temp" class="block text-sm font-medium text-gray-300 mb-1">Process Temperature [K]</label>
+                    <input type="number" id="process_temp" class="w-full px-4 py-2 text-gray-900 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                </div>
+                <div class="relative">
+                    <label for="rotational_speed" class="block text-sm font-medium text-gray-300 mb-1">Rotational Speed [rpm]</label>
+                    <input type="number" id="rotational_speed" class="w-full px-4 py-2 text-gray-900 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                </div>
+                <div class="relative">
+                    <label for="torque" class="block text-sm font-medium text-gray-300 mb-1">Torque [Nm]</label>
+                    <input type="number" id="torque" class="w-full px-4 py-2 text-gray-900 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                </div>
+                <div class="relative">
+                    <label for="tool_wear" class="block text-sm font-medium text-gray-300 mb-1">Tool Wear [min]</label>
+                    <input type="number" id="tool_wear" class="w-full px-4 py-2 text-gray-900 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Button -->
+        <button id="predict_button" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900">
+            Get Prediction
+        </button>
+
+        <!-- Prediction Output Section -->
+        <div id="result_section" class="mt-8 text-center hidden">
+            <h2 class="text-2xl font-semibold mb-2 text-white">Prediction Result</h2>
+            <div id="result_box" class="p-6 rounded-lg shadow-lg">
+                <p id="prediction_text" class="text-xl font-bold"></p>
+                <p id="recommendation_text" class="mt-2 text-sm text-gray-400"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const predictButton = document.getElementById('predict_button');
+            const resultSection = document.getElementById('result_section');
+            const resultBox = document.getElementById('result_box');
+            const predictionText = document.getElementById('prediction_text');
+            const recommendationText = document.getElementById('recommendation_text');
+
+            // Function to handle the prediction request to the backend
+            const getPrediction = async (params) => {
+                // The URL of your local Flask server
+                const url = 'http://127.0.0.1:5000/predict';
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(params),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    return result;
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    return {
+                        status: 'error',
+                        prediction: 'Error',
+                        recommendation: 'Could not connect to the prediction service.'
+                    };
+                }
+            };
+
+            predictButton.addEventListener('click', async () => {
+                const numericalValues = ['air_temp', 'process_temp', 'rotational_speed', 'torque', 'tool_wear'];
+
+                // Check if any numerical field is empty or not a valid number
+                for (const id of numericalValues) {
+                    const inputElement = document.getElementById(id);
+                    const value = inputElement.value;
+                    if (value === '' || isNaN(parseFloat(value))) {
+                        alert("Please fill in all the numerical fields with valid numbers.");
+                        return;
+                    }
+                }
+
+                const inputParams = {
+                    'Type': document.getElementById('product_type').value,
+                    'Air temperature [K]': parseFloat(document.getElementById('air_temp').value),
+                    'Process temperature [K]': parseFloat(document.getElementById('process_temp').value),
+                    'Rotational speed [rpm]': parseFloat(document.getElementById('rotational_speed').value),
+                    'Torque [Nm]': parseFloat(document.getElementById('torque').value),
+                    'Tool wear [min]': parseFloat(document.getElementById('tool_wear').value)
+                };
+
+                // Call the backend API
+                const result = await getPrediction(inputParams);
+
+                // Update the UI with the result from the backend
+                resultSection.classList.remove('hidden');
+
+                if (result.status === 'success') {
+                    if (result.prediction === 'FAILURE DETECTED') {
+                        resultBox.classList.remove('bg-gray-700', 'bg-green-600');
+                        resultBox.classList.add('bg-red-600');
+                        predictionText.textContent = "FAILURE DETECTED";
+                    } else {
+                        resultBox.classList.remove('bg-gray-700', 'bg-red-600');
+                        resultBox.classList.add('bg-green-600');
+                        predictionText.textContent = "GOOD CONDITION";
+                    }
+                    predictionText.classList.add('text-white');
+                    recommendationText.textContent = result.recommendation;
+                } else {
+                    // Handle API errors
+                    resultBox.classList.remove('bg-gray-700', 'bg-green-600', 'bg-red-600');
+                    resultBox.classList.add('bg-gray-700');
+                    predictionText.textContent = "Error";
+                    recommendationText.textContent = result.recommendation;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
