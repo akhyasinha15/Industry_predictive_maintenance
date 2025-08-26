@@ -85,7 +85,7 @@
             // Function to handle the prediction request to the backend
             const getPrediction = async (params) => {
                 // The URL of your local Flask server
-                const url = 'http://127.0.0.1:5000/predict';
+                const url = '/api/app';
 
                 try {
                     const response = await fetch(url, {
@@ -165,3 +165,4 @@
     </script>
 </body>
 </html>
+
